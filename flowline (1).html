@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flowline — Team Task Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F1419;
+    --surface:#161C24;
+    --surface-2:#1E2530;
+    --surface-3:#262F3C;
+    --border:rgba(230,236,241,0.08);
+    --border-strong:rgba(230,236,241,0.16);
+    --ink:#E6ECF1;
+    --ink-dim:#8D99A6;
+    --ink-faint:#5C6673;
+    --accent:#D98E3F;
+    --accent-soft:rgba(217,142,63,0.15);
+    --blue:#4C8BF5;
+    --blue-soft:rgba(76,139,245,0.15);
+    --violet:#9B7FE8;
+    --violet-soft:rgba(155,127,232,0.15);
+    --green:#4CAF7D;
+    --green-soft:rgba(76,175,125,0.15);
+    --red:#E2665A;
+    --red-soft:rgba(226,102,90,0.15);
+    --radius:4px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'Inter', sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    min-height:100vh;
+    font-size:14px;
+    line-height:1.5;
+  }
+  .display{ font-family:'Space Grotesk', sans-serif; }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+  button, input, select, textarea{ font-family:inherit; font-size:inherit; color:inherit; }
+  button{ cursor:pointer; }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  @media (prefers-reduced-motion: reduce){ *{ transition-duration:0.001ms !important; animation-duration:0.001ms !important; } }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-thumb{ background:var(--surface-3); border-radius:5px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+
+  .shell{ display:grid; grid-template-columns:236px 1fr; min-height:100vh; }
+  @media (max-width:900px){ .shell{ grid-template-columns:1fr; } .sidebar{ display:none; } }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{ background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:20px 14px; gap:24px; }
+  .workspace{ display:flex; align-items:center; gap:10px; padding:0 8px; }
+  .workspace .logo{ width:26px; height:26px; border-radius:6px; background:var(--accent); display:flex; align-items:center; justify-content:center; color:#1A1108; font-weight:700; font-size:0.85rem; flex-shrink:0; }
+  .workspace h1{ font-size:1.02rem; font-weight:700; }
+  .workspace .sub{ font-size:0.68rem; color:var(--ink-dim); }
+
+  .nav-section{ display:flex; flex-direction:column; gap:2px; }
+  .nav-label{ font-size:0.66rem; letter-spacing:0.09em; text-transform:uppercase; color:var(--ink-faint); padding:0 10px; margin-bottom:6px; font-weight:600; }
+  .nav-item{
+    display:flex; align-items:center; justify-content:space-between; gap:8px; background:none; border:none;
+    color:var(--ink-dim); text-align:left; padding:8px 10px; border-radius:var(--radius); font-size:0.86rem;
+    transition:background .15s, color .15s;
+  }
+  .nav-item:hover{ background:var(--surface-2); color:var(--ink); }
+  .nav-item.active{ background:var(--accent-soft); color:var(--accent); font-weight:600; }
+  .nav-item .dot{ width:7px; height:7px; border-radius:50%; flex-shrink:0; margin-right:8px; }
+  .nav-item .left{ display:flex; align-items:center; min-width:0; }
+  .nav-item .lbl{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .nav-item .count{ font-family:'IBM Plex Mono',monospace; font-size:0.72rem; opacity:0.75; }
+  .nav-item .del{ opacity:0; background:none; border:none; color:var(--red); font-size:0.8rem; padding:0 2px; }
+  .nav-item:hover .del{ opacity:0.7; }
+
+  .add-inline{ display:flex; gap:6px; margin-top:4px; padding:0 2px; }
+  .add-inline input{ flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--ink); padding:7px 9px; border-radius:var(--radius); font-size:0.8rem; }
+  .add-inline button{ background:none; border:1px solid var(--border); color:var(--ink-dim); width:28px; border-radius:var(--radius); }
+  .add-inline button:hover{ border-color:var(--accent); color:var(--accent); }
+
+  .sidebar-foot{ margin-top:auto; padding-top:14px; border-top:1px solid var(--border); font-size:0.72rem; color:var(--ink-faint); }
+
+  /* ---------- Main ---------- */
+  .main{ padding:22px 30px 60px; max-width:1280px; }
+  @media (max-width:640px){ .main{ padding:16px 16px 40px; } }
+
+  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; flex-wrap:wrap; }
+  .topbar h2{ font-size:1.4rem; font-weight:700; }
+  .topbar .sub{ font-size:0.8rem; color:var(--ink-dim); margin-top:2px; }
+  .view-switch{ display:flex; gap:2px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:2px; }
+  .view-switch button{ background:none; border:none; color:var(--ink-dim); padding:7px 14px; font-size:0.8rem; border-radius:2px; font-weight:500; }
+  .view-switch button.active{ background:var(--surface-3); color:var(--ink); }
+
+  .toolbar{ display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; align-items:center; }
+  .toolbar input[type="text"]{ flex:1; min-width:180px; background:var(--surface); border:1px solid var(--border); color:var(--ink); padding:9px 12px; border-radius:var(--radius); font-size:0.85rem; }
+  .toolbar select{ background:var(--surface); border:1px solid var(--border); color:var(--ink-dim); padding:9px 10px; border-radius:var(--radius); font-size:0.8rem; }
+  .btn-primary{ background:var(--accent); color:#1A1108; border:none; font-weight:600; font-size:0.84rem; padding:10px 16px; border-radius:var(--radius); white-space:nowrap; }
+  .btn-primary:hover{ opacity:0.9; }
+
+  /* ---------- Dashboard ---------- */
+  .stat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:28px; }
+  @media (max-width:760px){ .stat-grid{ grid-template-columns:repeat(2,1fr); } }
+  .stat-card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; }
+  .stat-card .num{ font-family:'Space Grotesk',sans-serif; font-size:1.9rem; font-weight:700; }
+  .stat-card .lbl{ font-size:0.76rem; color:var(--ink-dim); margin-top:4px; }
+  .stat-card.overdue .num{ color:var(--red); }
+
+  .panels{ display:grid; grid-template-columns:1.3fr 1fr; gap:16px; }
+  @media (max-width:900px){ .panels{ grid-template-columns:1fr; } }
+  .panel{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; }
+  .panel h3{ font-size:0.9rem; margin-bottom:16px; font-weight:600; }
+  .bar-row{ display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:0.78rem; }
+  .bar-row .lbl{ width:92px; color:var(--ink-dim); flex-shrink:0; }
+  .bar-track{ flex:1; height:8px; background:var(--surface-2); border-radius:4px; overflow:hidden; }
+  .bar-fill{ height:100%; border-radius:4px; }
+  .bar-row .val{ width:26px; text-align:right; font-family:'IBM Plex Mono',monospace; color:var(--ink-dim); flex-shrink:0; }
+
+  .legend{ display:flex; flex-direction:column; gap:10px; }
+  .legend-row{ display:flex; align-items:center; gap:10px; font-size:0.8rem; }
+  .legend-row .dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .legend-row .name{ flex:1; color:var(--ink-dim); }
+  .legend-row .val{ font-family:'IBM Plex Mono',monospace; }
+
+  /* ---------- List view ---------- */
+  .table-wrap{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  table{ width:100%; border-collapse:collapse; }
+  thead th{ text-align:left; font-size:0.7rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); padding:12px 14px; border-bottom:1px solid var(--border); font-weight:600; }
+  tbody tr{ border-bottom:1px solid var(--border); transition:background .12s; }
+  tbody tr:last-child{ border-bottom:none; }
+  tbody tr:hover{ background:var(--surface-2); }
+  tbody td{ padding:12px 14px; font-size:0.85rem; vertical-align:middle; }
+  td.done .title{ text-decoration:line-through; color:var(--ink-dim); }
+  .id-cell{ color:var(--ink-faint); font-size:0.75rem; }
+  .assignee{ display:flex; align-items:center; gap:8px; }
+  .avatar{ width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.62rem; font-weight:700; color:#0F1419; flex-shrink:0; }
+  .badge{ display:inline-flex; align-items:center; gap:5px; font-size:0.72rem; padding:3px 9px; border-radius:20px; font-weight:600; }
+  .badge.priority-urgent{ background:var(--red-soft); color:var(--red); }
+  .badge.priority-high{ background:var(--accent-soft); color:var(--accent); }
+  .badge.priority-medium{ background:var(--blue-soft); color:var(--blue); }
+  .badge.priority-low{ background:var(--surface-3); color:var(--ink-dim); }
+  .status-pill{ font-size:0.72rem; padding:3px 9px; border-radius:20px; font-weight:600; }
+  .status-backlog{ background:var(--surface-3); color:var(--ink-dim); }
+  .status-progress{ background:var(--blue-soft); color:var(--blue); }
+  .status-review{ background:var(--violet-soft); color:var(--violet); }
+  .status-done{ background:var(--green-soft); color:var(--green); }
+  .due-cell.overdue{ color:var(--red); font-weight:600; }
+  .row-actions{ display:flex; gap:8px; opacity:0; transition:opacity .12s; }
+  tbody tr:hover .row-actions{ opacity:1; }
+  .row-actions button{ background:none; border:none; color:var(--ink-dim); font-size:0.85rem; }
+  .row-actions button:hover{ color:var(--accent); }
+  .row-actions .del:hover{ color:var(--red); }
+
+  /* ---------- Board view ---------- */
+  .board{ display:grid; grid-template-columns:repeat(4, minmax(240px,1fr)); gap:14px; overflow-x:auto; padding-bottom:8px; }
+  @media (max-width:900px){ .board{ grid-auto-flow:column; grid-auto-columns:80%; } }
+  .col{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px; min-height:120px; }
+  .col-head{ display:flex; align-items:center; justify-content:space-between; padding:4px 4px 12px; }
+  .col-head .name{ font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; }
+  .col-head .n{ font-family:'IBM Plex Mono',monospace; font-size:0.72rem; color:var(--ink-dim); background:var(--surface-2); padding:2px 7px; border-radius:10px; }
+  .col.drag-over{ background:var(--surface-2); outline:1.5px dashed var(--border-strong); }
+  .card{
+    background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius);
+    padding:12px; margin-bottom:9px; cursor:grab; position:relative; border-left:3px solid var(--ink-faint);
+  }
+  .card[data-priority="urgent"]{ border-left-color:var(--red); }
+  .card[data-priority="high"]{ border-left-color:var(--accent); }
+  .card[data-priority="medium"]{ border-left-color:var(--blue); }
+  .card[data-priority="low"]{ border-left-color:var(--ink-faint); }
+  .card:hover{ border-color:var(--border-strong); }
+  .card .cid{ font-family:'IBM Plex Mono',monospace; font-size:0.66rem; color:var(--ink-faint); margin-bottom:6px; }
+  .card .ct{ font-size:0.85rem; font-weight:500; margin-bottom:10px; }
+  .card .cf{ display:flex; align-items:center; justify-content:space-between; gap:6px; }
+  .card .tags{ display:flex; gap:5px; flex-wrap:wrap; margin-bottom:8px; }
+  .card .tagchip{ font-size:0.64rem; padding:2px 7px; border-radius:10px; background:var(--surface-3); color:var(--ink-dim); }
+
+  /* ---------- Modal ---------- */
+  .overlay{ position:fixed; inset:0; background:rgba(6,8,10,0.7); display:none; align-items:center; justify-content:center; z-index:100; padding:20px; }
+  .overlay.open{ display:flex; }
+  .modal{ background:var(--surface); border:1px solid var(--border-strong); border-radius:6px; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; padding:26px; }
+  .modal h3{ font-size:1.1rem; margin-bottom:18px; font-weight:700; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:0.74rem; color:var(--ink-dim); margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; }
+  .field input, .field select, .field textarea{
+    width:100%; background:var(--surface-2); border:1px solid var(--border); color:var(--ink);
+    padding:10px 12px; border-radius:var(--radius); font-size:0.88rem;
+  }
+  .field textarea{ resize:vertical; min-height:70px; }
+  .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .modal-actions{ display:flex; justify-content:space-between; align-items:center; margin-top:22px; gap:10px; }
+  .btn-ghost{ background:none; border:1px solid var(--border); color:var(--ink-dim); padding:9px 16px; border-radius:var(--radius); font-size:0.84rem; }
+  .btn-ghost:hover{ border-color:var(--border-strong); color:var(--ink); }
+  .btn-danger{ background:none; border:none; color:var(--red); font-size:0.82rem; }
+
+  .empty{ text-align:center; padding:60px 20px; color:var(--ink-dim); border:1px dashed var(--border); border-radius:var(--radius); }
+  .empty .display{ color:var(--ink); font-size:1.05rem; margin-bottom:6px; }
+  .loading{ color:var(--ink-dim); font-size:0.85rem; padding:30px 0; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="workspace">
+      <div class="logo display">F</div>
+      <div>
+        <h1 class="display">Flowline</h1>
+        <div class="sub">Acme Corp · Ops Console</div>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Overview</div>
+      <button class="nav-item" data-nav="dashboard"><span class="left"><span class="lbl">Dashboard</span></span></button>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Projects</div>
+      <div id="projectNav"></div>
+      <div class="add-inline">
+        <input type="text" id="newProjectInput" placeholder="New project…" maxlength="26">
+        <button id="addProjectBtn" aria-label="Add project">+</button>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Team</div>
+      <div id="memberNav"></div>
+    </div>
+
+    <div class="sidebar-foot" id="sidebarFoot"></div>
+  </aside>
+
+  <main class="main">
+
+    <div id="dashboardView">
+      <div class="topbar">
+        <div>
+          <h2 class="display">Dashboard</h2>
+          <div class="sub">Portfolio health across every project.</div>
+        </div>
+      </div>
+      <div class="stat-grid" id="statGrid"></div>
+      <div class="panels">
+        <div class="panel">
+          <h3>Tasks by status</h3>
+          <div id="statusBars"></div>
+        </div>
+        <div class="panel">
+          <h3>Tasks by priority</h3>
+          <div class="legend" id="priorityLegend"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="workView" style="display:none;">
+      <div class="topbar">
+        <div>
+          <h2 class="display" id="boardTitle">All Projects</h2>
+          <div class="sub" id="boardSub"></div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <div class="view-switch" id="viewSwitch">
+            <button data-view="board" class="active">Board</button>
+            <button data-view="list">List</button>
+          </div>
+          <button class="btn-primary" id="newTaskBtn">+ New task</button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input type="text" id="searchInput" placeholder="Search tasks…">
+        <select id="assigneeFilter"><option value="">All assignees</option></select>
+        <select id="priorityFilter">
+          <option value="">All priorities</option>
+          <option value="urgent">Urgent</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+
+      <div id="loading" class="loading">Loading console…</div>
+
+      <div id="boardWrap" style="display:none;">
+        <div class="board" id="board"></div>
+      </div>
+
+      <div id="listWrap" style="display:none;">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>ID</th><th>Task</th><th>Assignee</th><th>Priority</th><th>Status</th><th>Due</th><th></th>
+            </tr></thead>
+            <tbody id="taskTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h3 id="modalTitle">New task</h3>
+    <form id="taskForm">
+      <div class="field">
+        <label for="fTitle">Title</label>
+        <input type="text" id="fTitle" required maxlength="140" placeholder="e.g. Finalize Q3 vendor contract">
+      </div>
+      <div class="field">
+        <label for="fDesc">Description</label>
+        <textarea id="fDesc" placeholder="Optional details…"></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="fProject">Project</label>
+          <select id="fProject"></select>
+        </div>
+        <div class="field">
+          <label for="fAssignee">Assignee</label>
+          <select id="fAssignee"></select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="fPriority">Priority</label>
+          <select id="fPriority">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="fStatus">Status</label>
+          <select id="fStatus">
+            <option value="backlog">Backlog</option>
+            <option value="progress">In Progress</option>
+            <option value="review">Review</option>
+            <option value="done">Done</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="fDue">Due date</label>
+          <input type="date" id="fDue">
+        </div>
+        <div class="field">
+          <label for="fTags">Tags (comma separated)</label>
+          <input type="text" id="fTags" placeholder="finance, urgent">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-danger" id="deleteTaskBtn" style="display:none;">Delete task</button>
+        <div style="display:flex; gap:10px; margin-left:auto;">
+          <button type="button" class="btn-ghost" id="cancelBtn">Cancel</button>
+          <button type="submit" class="btn-primary">Save task</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  const STORE_KEY = 'flowline-data-v1';
+  const STATUSES = [
+    {id:'backlog', name:'Backlog', color:'var(--ink-faint)'},
+    {id:'progress', name:'In Progress', color:'var(--blue)'},
+    {id:'review', name:'Review', color:'var(--violet)'},
+    {id:'done', name:'Done', color:'var(--green)'}
+  ];
+  const PRIORITY_COLORS = { urgent:'var(--red)', high:'var(--accent)', medium:'var(--blue)', low:'var(--ink-faint)' };
+  const AVATAR_COLORS = ['#D98E3F','#4C8BF5','#9B7FE8','#4CAF7D','#E2665A','#4FC3E8'];
+
+  let data = {
+    projects: [{id:'general', name:'General'}],
+    members: [
+      {id:'m1', name:'Alex Rivera'},
+      {id:'m2', name:'Sam Chen'},
+      {id:'m3', name:'Priya Nair'}
+    ],
+    tasks: []
+  };
+  let currentProject = 'all';
+  let currentView = 'board';
+  let currentNav = 'work';
+  let search = '';
+  let assigneeFilter = '';
+  let priorityFilter = '';
+  let editingTaskId = null;
+  let ready = false;
+
+  const $ = id => document.getElementById(id);
+
+  function uid(p){ return p + '-' + Math.random().toString(36).slice(2,8); }
+  function ticketId(n){ return 'TSK-' + String(n).padStart(5,'0'); }
+  function initials(name){ return name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
+  function avatarColor(id){ let h=0; for(const c of id) h = (h*31 + c.charCodeAt(0))>>>0; return AVATAR_COLORS[h % AVATAR_COLORS.length]; }
+  function escapeHtml(str){ const d=document.createElement('div'); d.textContent = str||''; return d.innerHTML; }
+  function memberName(id){ const m = data.members.find(x=>x.id===id); return m ? m.name : 'Unassigned'; }
+
+  async function load(){
+    try{
+      const res = await window.storage.get(STORE_KEY, false);
+      if(res && res.value){
+        const parsed = JSON.parse(res.value);
+        if(parsed.projects && parsed.projects.length) data = parsed;
+      }
+    }catch(e){ /* first run, use defaults */ }
+    ready = true;
+    $('loading').style.display = 'none';
+    populateSelects();
+    renderAll();
+  }
+  async function save(){
+    try{ await window.storage.set(STORE_KEY, JSON.stringify(data), false); }
+    catch(e){ console.error('save failed', e); }
+  }
+
+  function visibleTasks(){
+    let tasks = data.tasks;
+    if(currentProject !== 'all') tasks = tasks.filter(t => t.projectId === currentProject);
+    if(search) tasks = tasks.filter(t => t.title.toLowerCase().includes(search.toLowerCase()));
+    if(assigneeFilter) tasks = tasks.filter(t => t.assigneeId === assigneeFilter);
+    if(priorityFilter) tasks = tasks.filter(t => t.priority === priorityFilter);
+    return tasks;
+  }
+
+  function renderAll(){
+    renderProjectNav();
+    renderMemberNav();
+    renderMemberFilter();
+    renderSidebarFoot();
+    if(currentNav === 'dashboard'){
+      $('dashboardView').style.display = 'block';
+      $('workView').style.display = 'none';
+      renderDashboard();
+    } else {
+      $('dashboardView').style.display = 'none';
+      $('workView').style.display = 'block';
+      renderBoardHead();
+      if(currentView === 'board'){
+        $('boardWrap').style.display = 'block';
+        $('listWrap').style.display = 'none';
+        renderBoard();
+      } else {
+        $('boardWrap').style.display = 'none';
+        $('listWrap').style.display = 'block';
+        renderList();
+      }
+    }
+  }
+
+  function renderProjectNav(){
+    const nav = $('projectNav');
+    nav.innerHTML = '';
+    const allBtn = document.createElement('button');
+    allBtn.className = 'nav-item' + (currentNav==='work' && currentProject==='all' ? ' active' : '');
+    const allCount = data.tasks.filter(t=>!['done'].includes(t.status)).length;
+    allBtn.innerHTML = `<span class="left"><span class="lbl">All Projects</span></span><span class="count">${allCount}</span>`;
+    allBtn.addEventListener('click', () => { currentNav='work'; currentProject='all'; renderAll(); });
+    nav.appendChild(allBtn);
+
+    data.projects.forEach(p => {
+      const count = data.tasks.filter(t => t.projectId === p.id && t.status !== 'done').length;
+      const btn = document.createElement('button');
+      btn.className = 'nav-item' + (currentNav==='work' && currentProject===p.id ? ' active' : '');
+      btn.innerHTML = `<span class="left"><span class="dot" style="background:${avatarColor(p.id)}"></span><span class="lbl">${escapeHtml(p.name)}</span></span>` +
+        `<span style="display:flex;align-items:center;gap:6px;"><span class="count">${count}</span>` +
+        (p.id !== 'general' ? `<button class="del" data-del-proj="${p.id}" aria-label="Delete project">✕</button>` : '') + `</span>`;
+      btn.addEventListener('click', (e) => {
+        if(e.target.closest('[data-del-proj]')) return;
+        currentNav='work'; currentProject = p.id; renderAll();
+      });
+      nav.appendChild(btn);
+      const del = btn.querySelector('[data-del-proj]');
+      if(del) del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        data.projects = data.projects.filter(x => x.id !== p.id);
+        data.tasks = data.tasks.filter(x => x.projectId !== p.id);
+        if(currentProject === p.id) currentProject = 'all';
+        save(); populateSelects(); renderAll();
+      });
+    });
+
+    $('dashboardBtn') && $('dashboardBtn').classList.toggle('active', currentNav==='dashboard');
+  }
+  document.querySelector('[data-nav="dashboard"]').addEventListener('click', () => { currentNav='dashboard'; renderAll(); });
+
+  function renderMemberNav(){
+    const nav = $('memberNav');
+    nav.innerHTML = '';
+    data.members.forEach(m => {
+      const count = data.tasks.filter(t => t.assigneeId === m.id && t.status !== 'done').length;
+      const row = document.createElement('div');
+      row.className = 'nav-item';
+      row.style.cursor = 'default';
+      row.innerHTML = `<span class="left"><span class="avatar" style="background:${avatarColor(m.id)}; width:18px;height:18px;font-size:0.56rem;margin-right:8px;">${initials(m.name)}</span><span class="lbl">${escapeHtml(m.name)}</span></span><span class="count">${count}</span>`;
+      nav.appendChild(row);
+    });
+  }
+
+  function renderMemberFilter(){
+    const sel = $('assigneeFilter');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">All assignees</option>' +
+      data.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+    sel.value = current;
+  }
+
+  function renderSidebarFoot(){
+    const open = data.tasks.filter(t => t.status !== 'done').length;
+    const overdue = data.tasks.filter(t => isOverdue(t)).length;
+    $('sidebarFoot').innerHTML = `${open} open task${open===1?'':'s'} · <span style="color:${overdue?'var(--red)':'inherit'}">${overdue} overdue</span>`;
+  }
+
+  function isOverdue(t){
+    if(!t.due || t.status === 'done') return false;
+    const d = new Date(t.due + 'T00:00:00');
+    const today = new Date(); today.setHours(0,0,0,0);
+    return d < today;
+  }
+
+  function renderBoardHead(){
+    const proj = data.projects.find(p => p.id === currentProject);
+    $('boardTitle').textContent = currentProject === 'all' ? 'All Projects' : proj.name;
+    const tasks = visibleTasks();
+    $('boardSub').textContent = `${tasks.length} task${tasks.length===1?'':'s'} in view`;
+  }
+
+  function populateSelects(){
+    const projSel = $('fProject');
+    projSel.innerHTML = data.projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+    const asgSel = $('fAssignee');
+    asgSel.innerHTML = '<option value="">Unassigned</option>' + data.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+  }
+
+  /* ---------- Board (Kanban) ---------- */
+  function renderBoard(){
+    const board = $('board');
+    board.innerHTML = '';
+    const tasks = visibleTasks();
+    STATUSES.forEach(status => {
+      const col = document.createElement('div');
+      col.className = 'col';
+      col.setAttribute('data-status', status.id);
+      const colTasks = tasks.filter(t => t.status === status.id).sort((a,b)=>b.createdAt-a.createdAt);
+      col.innerHTML = `<div class="col-head"><span class="name" style="color:${status.color}">${status.name}</span><span class="n">${colTasks.length}</span></div>`;
+      colTasks.forEach(t => col.appendChild(buildCard(t)));
+
+      col.addEventListener('dragover', (e) => { e.preventDefault(); col.classList.add('drag-over'); });
+      col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
+      col.addEventListener('drop', (e) => {
+        e.preventDefault(); col.classList.remove('drag-over');
+        const id = e.dataTransfer.getData('text/plain');
+        const task = data.tasks.find(x => x.id === id);
+        if(task){ task.status = status.id; save(); renderAll(); }
+      });
+      board.appendChild(col);
+    });
+  }
+
+  function buildCard(t){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.setAttribute('data-priority', t.priority);
+    card.setAttribute('draggable', 'true');
+    const overdue = isOverdue(t);
+    const tagHtml = (t.tags||[]).map(tag => `<span class="tagchip">${escapeHtml(tag)}</span>`).join('');
+    card.innerHTML = `
+      <div class="cid">${t.ticketNo}</div>
+      <div class="ct">${escapeHtml(t.title)}</div>
+      ${tagHtml ? `<div class="tags">${tagHtml}</div>` : ''}
+      <div class="cf">
+        <span class="badge priority-${t.priority}">${t.priority}</span>
+        ${t.assigneeId ? `<span class="avatar" style="background:${avatarColor(t.assigneeId)}">${initials(memberName(t.assigneeId))}</span>` : '<span></span>'}
+      </div>
+      ${t.due ? `<div style="margin-top:8px; font-size:0.7rem; color:${overdue?'var(--red)':'var(--ink-faint)'}; font-family:'IBM Plex Mono',monospace;">${overdue?'⚠ ':''}${formatDate(t.due)}</div>` : ''}
+    `;
+    card.addEventListener('click', () => openModal(t.id));
+    card.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', t.id); setTimeout(()=>card.style.opacity='0.4',0); });
+    card.addEventListener('dragend', () => card.style.opacity='1');
+    return card;
+  }
+
+  /* ---------- List view ---------- */
+  function renderList(){
+    const tbody = $('taskTableBody');
+    tbody.innerHTML = '';
+    const tasks = [...visibleTasks()].sort((a,b)=>b.createdAt-a.createdAt);
+    if(tasks.length === 0){
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="display">No tasks match</div>Adjust filters or add a new task.</div></td></tr>`;
+      return;
+    }
+    tasks.forEach(t => {
+      const tr = document.createElement('tr');
+      const overdue = isOverdue(t);
+      const statusInfo = STATUSES.find(s=>s.id===t.status);
+      tr.innerHTML = `
+        <td class="id-cell mono">${t.ticketNo}</td>
+        <td class="${t.status==='done'?'done':''}"><span class="title">${escapeHtml(t.title)}</span></td>
+        <td>${t.assigneeId ? `<span class="assignee"><span class="avatar" style="background:${avatarColor(t.assigneeId)}">${initials(memberName(t.assigneeId))}</span>${escapeHtml(memberName(t.assigneeId))}</span>` : '<span style="color:var(--ink-faint)">—</span>'}</td>
+        <td><span class="badge priority-${t.priority}">${t.priority}</span></td>
+        <td><span class="status-pill status-${t.status}">${statusInfo.name}</span></td>
+        <td class="due-cell mono ${overdue?'overdue':''}">${t.due ? formatDate(t.due) : '—'}</td>
+        <td><div class="row-actions"><button class="edit" data-edit="${t.id}">✎</button><button class="del" data-del="${t.id}">✕</button></div></td>
+      `;
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => openModal(b.getAttribute('data-edit'))));
+    tbody.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
+      data.tasks = data.tasks.filter(x => x.id !== b.getAttribute('data-del'));
+      save(); renderAll();
+    }));
+  }
+
+  function formatDate(str){
+    return new Date(str+'T00:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  }
+
+  /* ---------- Dashboard ---------- */
+  function renderDashboard(){
+    const tasks = data.tasks;
+    const open = tasks.filter(t=>t.status!=='done').length;
+    const overdue = tasks.filter(isOverdue).length;
+    const weekAgo = Date.now() - 7*24*60*60*1000;
+    const doneThisWeek = tasks.filter(t=>t.status==='done' && t.createdAt >= weekAgo).length;
+    $('statGrid').innerHTML = `
+      <div class="stat-card"><div class="num">${tasks.length}</div><div class="lbl">Total tasks</div></div>
+      <div class="stat-card"><div class="num">${open}</div><div class="lbl">Open</div></div>
+      <div class="stat-card overdue"><div class="num">${overdue}</div><div class="lbl">Overdue</div></div>
+      <div class="stat-card"><div class="num">${tasks.filter(t=>t.status==='done').length}</div><div class="lbl">Completed total</div></div>
+    `;
+    const max = Math.max(1, ...STATUSES.map(s => tasks.filter(t=>t.status===s.id).length));
+    $('statusBars').innerHTML = STATUSES.map(s => {
+      const count = tasks.filter(t=>t.status===s.id).length;
+      const pct = Math.round((count/max)*100);
+      return `<div class="bar-row"><span class="lbl">${s.name}</span><div class="bar-track"><div class="bar-fill" style="width:${pct}%; background:${s.color}"></div></div><span class="val">${count}</span></div>`;
+    }).join('');
+
+    const priorities = ['urgent','high','medium','low'];
+    $('priorityLegend').innerHTML = priorities.map(p => {
+      const count = tasks.filter(t=>t.priority===p).length;
+      return `<div class="legend-row"><span class="dot" style="background:${PRIORITY_COLORS[p]}"></span><span class="name" style="text-transform:capitalize;">${p}</span><span class="val">${count}</span></div>`;
+    }).join('');
+  }
+
+  /* ---------- Modal ---------- */
+  function openModal(taskId){
+    editingTaskId = taskId || null;
+    const t = taskId ? data.tasks.find(x=>x.id===taskId) : null;
+    $('modalTitle').textContent = t ? 'Edit task' : 'New task';
+    $('fTitle').value = t ? t.title : '';
+    $('fDesc').value = t ? (t.description||'') : '';
+    $('fProject').value = t ? t.projectId : (currentProject !== 'all' ? currentProject : data.projects[0].id);
+    $('fAssignee').value = t ? (t.assigneeId||'') : '';
+    $('fPriority').value = t ? t.priority : 'medium';
+    $('fStatus').value = t ? t.status : 'backlog';
+    $('fDue').value = t ? (t.due||'') : '';
+    $('fTags').value = t ? (t.tags||[]).join(', ') : '';
+    $('deleteTaskBtn').style.display = t ? 'inline-block' : 'none';
+    $('overlay').classList.add('open');
+    $('fTitle').focus();
+  }
+  function closeModal(){ $('overlay').classList.remove('open'); editingTaskId = null; }
+
+  $('newTaskBtn').addEventListener('click', () => openModal(null));
+  $('cancelBtn').addEventListener('click', closeModal);
+  $('overlay').addEventListener('click', (e) => { if(e.target === $('overlay')) closeModal(); });
+
+  $('taskForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const tags = $('fTags').value.split(',').map(s=>s.trim()).filter(Boolean);
+    if(editingTaskId){
+      const t = data.tasks.find(x=>x.id===editingTaskId);
+      Object.assign(t, {
+        title: $('fTitle').value.trim(),
+        description: $('fDesc').value.trim(),
+        projectId: $('fProject').value,
+        assigneeId: $('fAssignee').value,
+        priority: $('fPriority').value,
+        status: $('fStatus').value,
+        due: $('fDue').value,
+        tags
+      });
+    } else {
+      data.tasks.push({
+        id: uid('task'),
+        ticketNo: ticketId(data.tasks.length+1),
+        title: $('fTitle').value.trim(),
+        description: $('fDesc').value.trim(),
+        projectId: $('fProject').value,
+        assigneeId: $('fAssignee').value,
+        priority: $('fPriority').value,
+        status: $('fStatus').value,
+        due: $('fDue').value,
+        tags,
+        createdAt: Date.now()
+      });
+    }
+    save(); closeModal(); renderAll();
+  });
+
+  $('deleteTaskBtn').addEventListener('click', () => {
+    data.tasks = data.tasks.filter(x => x.id !== editingTaskId);
+    save(); closeModal(); renderAll();
+  });
+
+  /* ---------- Toolbar / filters ---------- */
+  $('addProjectBtn').addEventListener('click', () => {
+    const input = $('newProjectInput');
+    const name = input.value.trim();
+    if(!name) return;
+    const id = uid('proj');
+    data.projects.push({id, name});
+    currentNav='work'; currentProject = id;
+    input.value = '';
+    save(); populateSelects(); renderAll();
+  });
+  $('newProjectInput').addEventListener('keydown', (e) => { if(e.key==='Enter'){ e.preventDefault(); $('addProjectBtn').click(); } });
+
+  $('viewSwitch').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-view]');
+    if(!btn) return;
+    currentView = btn.getAttribute('data-view');
+    $('viewSwitch').querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderAll();
+  });
+
+  $('searchInput').addEventListener('input', (e) => { search = e.target.value; renderAll(); });
+  $('assigneeFilter').addEventListener('change', (e) => { assigneeFilter = e.target.value; renderAll(); });
+  $('priorityFilter').addEventListener('change', (e) => { priorityFilter = e.target.value; renderAll(); });
+
+  load();
+})();
+</script>
+</body>
+</html>
